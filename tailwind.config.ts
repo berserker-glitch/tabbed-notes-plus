@@ -18,6 +18,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				mono: ['Consolas', 'Menlo', 'Monaco', 'Liberation Mono', 'Courier New', 'monospace'],
+				sans: ['Inter', 'system-ui', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -61,7 +65,20 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				notepad: {
+					'tab-bg': 'hsl(var(--notepad-tab-bg))',
+					'tab-active': 'hsl(var(--notepad-tab-active))',
+					'tab-hover': 'hsl(var(--notepad-tab-hover))',
 				}
+			},
+			boxShadow: {
+				'notepad': '0 1px 3px 0 hsl(var(--notepad-shadow))',
+				'notepad-elevated': '0 4px 12px 0 hsl(var(--notepad-shadow-elevated))',
+			},
+			transitionProperty: {
+				'smooth': 'var(--transition-smooth)',
+				'fast': 'var(--transition-fast)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
