@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, X, Moon, Sun, Eye, Edit3, Save } from 'lucide-react';
+import { Plus, X, Moon, Sun, Eye, Edit3, Save, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 interface Note {
   id: string;
@@ -175,6 +176,18 @@ export function Notepad() {
     setTempTitle('');
   };
 
+  // Handle drag end
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(notes);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setNotes(items);
+    saveNotes(items);
+  };
+
   // Manual save
   const manualSave = () => {
     if (saveTimeoutRef.current) {
@@ -230,45 +243,60 @@ export function Notepad() {
   return (
     <div className="h-screen bg-background flex flex-col font-sans">
       {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3 shadow-notepad">
+      <header className="bg-gradient-to-r from-card to-background/90 border-b border-border/60 px-6 py-4 shadow-notepad backdrop-blur-sm">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">Smart Notepad</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+            <h1 className="text-lg font-semibold text-foreground bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+              Smart Notepad
+            </h1>
+          </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsMarkdownPreview(!isMarkdownPreview)}
-              className="gap-2"
+              className={`gap-2 rounded-lg transition-all duration-200 hover:scale-105 ${
+                isMarkdownPreview 
+                  ? 'bg-accent/20 text-accent hover:bg-accent/30' 
+                  : 'hover:bg-secondary/80'
+              }`}
             >
               {isMarkdownPreview ? <Edit3 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {isMarkdownPreview ? 'Edit' : 'Preview'}
+              <span className="hidden sm:inline">
+                {isMarkdownPreview ? 'Edit' : 'Preview'}
+              </span>
             </Button>
             
             <Button
               variant="ghost"
               size="sm"
               onClick={manualSave}
-              className="gap-2"
+              className="gap-2 rounded-lg hover:bg-secondary/80 hover:scale-105 transition-all duration-200"
             >
               <Save className="h-4 w-4" />
-              Save
+              <span className="hidden sm:inline">Save</span>
             </Button>
             
             <Button
               variant="ghost"
               size="sm"
               onClick={createNewNote}
-              className="gap-2"
+              className="gap-2 rounded-lg hover:bg-secondary/80 hover:scale-105 transition-all duration-200"
             >
               <Plus className="h-4 w-4" />
-              New
+              <span className="hidden sm:inline">New</span>
             </Button>
+            
+            <div className="w-px h-6 bg-border/60 mx-1" />
             
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
+              className="rounded-lg hover:bg-secondary/80 hover:scale-105 transition-all duration-200"
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
@@ -277,66 +305,126 @@ export function Notepad() {
       </header>
 
       {/* Tab Bar */}
-      <div className="bg-notepad-tab-bg border-b border-border overflow-x-auto">
-        <div className="flex min-w-max">
-          {notes.map((note) => (
-            <div
-              key={note.id}
-              className={`group flex items-center min-w-0 border-r border-border transition-all duration-200 ${
-                activeNoteId === note.id
-                  ? 'bg-notepad-tab-active shadow-sm'
-                  : 'bg-notepad-tab-bg hover:bg-notepad-tab-hover'
-              }`}
-            >
-              {isRenamingTab === note.id ? (
-                <input
-                  type="text"
-                  value={tempTitle}
-                  onChange={(e) => setTempTitle(e.target.value)}
-                  onBlur={saveRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveRename();
-                    if (e.key === 'Escape') {
-                      setIsRenamingTab(null);
-                      setTempTitle('');
-                    }
-                  }}
-                  className="bg-transparent border-none outline-none px-4 py-3 text-sm min-w-0 max-w-48"
-                  autoFocus
-                />
-              ) : (
-                <button
-                  onClick={() => switchToNote(note.id)}
-                  onDoubleClick={() => startRename(note.id, note.title)}
-                  className="flex-1 px-4 py-3 text-left text-sm truncate hover:text-foreground transition-colors"
-                  title={note.title}
-                >
-                  {note.title}
-                </button>
-              )}
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeNote(note.id);
-                }}
-                className="p-2 opacity-0 group-hover:opacity-100 hover:bg-border rounded transition-all"
-                aria-label={`Close ${note.title}`}
+      <div className="bg-gradient-to-b from-background to-notepad-tab-bg border-b border-border/60 px-2 py-1">
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="tabs" direction="horizontal">
+            {(provided, snapshot) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={`flex gap-1 min-w-max transition-all duration-200 ${
+                  snapshot.isDraggingOver ? 'bg-accent/10 rounded-lg p-1' : ''
+                }`}
               >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
+                {notes.map((note, index) => (
+                  <Draggable key={note.id} draggableId={note.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`group relative flex items-center min-w-0 max-w-48 transition-all duration-300 ease-out ${
+                          snapshot.isDragging ? 'rotate-2 scale-105 z-50' : ''
+                        } ${
+                          activeNoteId === note.id
+                            ? 'bg-card shadow-notepad-elevated border border-border/50 rounded-t-lg'
+                            : 'bg-notepad-tab-bg hover:bg-notepad-tab-hover hover:shadow-notepad rounded-lg mt-1'
+                        }`}
+                        style={{
+                          ...provided.draggableProps.style,
+                          transform: snapshot.isDragging 
+                            ? `${provided.draggableProps.style?.transform} rotate(2deg)` 
+                            : provided.draggableProps.style?.transform,
+                        }}
+                      >
+                        {/* Drag Handle */}
+                        <div
+                          {...provided.dragHandleProps}
+                          className="flex items-center pl-2 pr-1 py-3 opacity-0 group-hover:opacity-70 hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+                        >
+                          <GripVertical className="h-3 w-3 text-muted-foreground" />
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="flex-1 min-w-0 flex items-center">
+                          {isRenamingTab === note.id ? (
+                            <input
+                              type="text"
+                              value={tempTitle}
+                              onChange={(e) => setTempTitle(e.target.value)}
+                              onBlur={saveRename}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveRename();
+                                if (e.key === 'Escape') {
+                                  setIsRenamingTab(null);
+                                  setTempTitle('');
+                                }
+                              }}
+                              className="bg-transparent border-none outline-none px-2 py-3 text-sm min-w-0 w-full focus:bg-accent/20 rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => switchToNote(note.id)}
+                              onDoubleClick={() => startRename(note.id, note.title)}
+                              className={`flex-1 px-2 py-3 text-left text-sm truncate transition-all duration-200 rounded ${
+                                activeNoteId === note.id
+                                  ? 'text-foreground font-medium'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                              title={note.title}
+                            >
+                              {note.title}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Close Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            closeNote(note.id);
+                          }}
+                          className={`mr-2 p-1.5 rounded-full transition-all duration-200 ${
+                            activeNoteId === note.id
+                              ? 'opacity-60 hover:opacity-100 hover:bg-destructive/20 hover:text-destructive'
+                              : 'opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-destructive/20 hover:text-destructive'
+                          }`}
+                          aria-label={`Close ${note.title}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+
+                        {/* Active Tab Indicator */}
+                        {activeNoteId === note.id && (
+                          <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent rounded-full animate-scale-in" />
+                        )}
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+                
+                {/* Add New Tab Button */}
+                <button
+                  onClick={createNewNote}
+                  className="flex items-center justify-center w-8 h-8 ml-2 my-1 rounded-lg bg-notepad-tab-bg hover:bg-notepad-tab-hover border border-dashed border-border/60 hover:border-accent/60 transition-all duration-200 hover:scale-105 group"
+                  title="Add new note (Ctrl+T)"
+                >
+                  <Plus className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
+                </button>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
 
       {/* Editor Area */}
-      <div className="flex-1 bg-card">
+      <div className="flex-1 bg-card relative overflow-hidden">
         {activeNote && (
-          <div className="h-full">
+          <div className="h-full animate-fade-in">
             {isMarkdownPreview ? (
               <div 
-                className="h-full p-6 overflow-y-auto prose prose-sm max-w-none font-mono"
+                className="h-full p-6 overflow-y-auto prose prose-sm max-w-none font-mono bg-gradient-to-br from-card to-background/50 animate-scale-in"
                 dangerouslySetInnerHTML={{ 
                   __html: renderMarkdown(activeNote.content) 
                 }}
@@ -346,27 +434,47 @@ export function Notepad() {
                 ref={textareaRef}
                 value={activeNote.content}
                 onChange={handleContentChange}
-                className="w-full h-full p-6 bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground"
+                className="w-full h-full p-6 bg-transparent border-none outline-none resize-none font-mono text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:bg-gradient-to-br focus:from-card focus:to-accent/5 transition-all duration-300"
                 placeholder="Start typing your note..."
                 spellCheck={false}
+                style={{
+                  fontFamily: 'Consolas, Menlo, Monaco, "Liberation Mono", "Courier New", monospace',
+                  lineHeight: '1.6',
+                  letterSpacing: '0.02em'
+                }}
               />
             )}
           </div>
         )}
+        
+        {/* Subtle border gradient for depth */}
+        <div className="absolute inset-0 pointer-events-none border border-border/20 rounded-none" />
       </div>
 
       {/* Status Bar */}
-      <footer className="bg-muted border-t border-border px-4 py-2 text-xs text-muted-foreground flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <span>{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
-          {activeNote && (
-            <span>
-              Last modified: {new Date(activeNote.lastModified).toLocaleString()}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <span>Ctrl+T: New • Ctrl+W: Close • Ctrl+S: Save</span>
+      <footer className="bg-gradient-to-r from-muted to-background/80 border-t border-border/60 px-6 py-3 text-xs text-muted-foreground backdrop-blur-sm">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-1 bg-accent rounded-full" />
+              <span className="font-medium">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</span>
+            </div>
+            {activeNote && (
+              <span className="text-muted-foreground/80">
+                Last modified: {new Date(activeNote.lastModified).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="hidden sm:flex items-center gap-1 text-muted-foreground/70">
+            <kbd className="px-1.5 py-0.5 bg-border/40 rounded text-xs">Ctrl+T</kbd>
+            <span>New</span>
+            <span className="mx-2">•</span>
+            <kbd className="px-1.5 py-0.5 bg-border/40 rounded text-xs">Ctrl+W</kbd>
+            <span>Close</span>
+            <span className="mx-2">•</span>
+            <kbd className="px-1.5 py-0.5 bg-border/40 rounded text-xs">Ctrl+S</kbd>
+            <span>Save</span>
+          </div>
         </div>
       </footer>
     </div>
