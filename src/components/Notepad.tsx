@@ -282,6 +282,15 @@ export function Notepad() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => {}}
+              className="gap-2 rounded-lg hover:bg-secondary/80 hover:scale-105 transition-all duration-200"
+            >
+              <span className="hidden sm:inline">AI Actions</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={createNewNote}
               className="gap-2 rounded-lg hover:bg-secondary/80 hover:scale-105 transition-all duration-200"
             >
